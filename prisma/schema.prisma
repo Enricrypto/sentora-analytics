@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PairSnapshot {
+  id        Int      @id @default(autoincrement())
+  pair      String
+  timestamp DateTime
+  liquidity Float
+  volume    Float
+  fees      Float
+}
