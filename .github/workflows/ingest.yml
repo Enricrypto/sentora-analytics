@@ -21,6 +21,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Debug environment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "DATABASE_URL is:"
+          echo "$DATABASE_URL"
+
       - name: Generate Prisma client
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
