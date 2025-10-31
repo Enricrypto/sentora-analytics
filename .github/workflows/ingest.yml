@@ -1,10 +1,9 @@
 name: Ingest Snapshots
 
-# Run schedule every hour
 on:
   schedule:
-    - cron: "0 * * * *" # Every hour at minute 0
-  workflow_dispatch: # Allows manual run from GitHub UI
+    - cron: "0 * * * *" # Every hour
+  workflow_dispatch:
 
 jobs:
   ingest:
@@ -21,6 +20,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Run ingestion
         env:
