@@ -1,4 +1,5 @@
 import { ingestSnapshots } from "@/lib/pairs/ingestSnapshots"
+import { prisma } from "@/lib/prisma"
 
 async function run() {
   console.log(`\n[${new Date().toISOString()}] Running ingestion...`)
@@ -9,9 +10,16 @@ async function run() {
   }
 }
 
-// Run immediately on start
-run()
+async function main() {
+  await run()
 
-// Then run every 60 minutes
-const intervalMs = 60 * 60 * 1000 // 60 minutes
-setInterval(run, intervalMs)
+  // Ensure all resources are cleaned up
+  // e.g., Prisma client disconnection if used inside ingestSnapshots
+  if (typeof prisma !== "undefined") {
+    await prisma.$disconnect()
+  }
+
+  process.exit(0) // Exit so GitHub Actions workflow finishes
+}
+
+main()
