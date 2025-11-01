@@ -3,10 +3,6 @@ import { request, gql } from "graphql-request"
 import { ENDPOINT } from "@/app/constants"
 
 dotenv.config()
-console.log(
-  "🔑 THEGRAPH_API_KEY loaded as:",
-  process.env.THEGRAPH_API_KEY ? "✅ Exists" : "❌ Missing"
-)
 
 // -----------------------------------------------------
 // Type definition for pair hourly data returned from The Graph
