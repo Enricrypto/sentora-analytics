@@ -1,11 +1,22 @@
-// Pair selector: lets user switch between the two pairs.
-// Moving Average selector: dynamically updates ma for the chart.
-// The chart fetches new data whenever either changes.
-// fetchData is memoized with useCallback — effect only runs when dependencies change.
-
+/**
+ * AprChart component
+ *
+ * Displays a line chart of APR (Annual Percentage Rate) for a selected trading pair
+ * over the last 24 hours.
+ *
+ * Features:
+ * - Pair selector: allows switching between available trading pairs.
+ * - Moving Average selector: choose 1h, 12h, or 24h moving average for smoothing APR.
+ * - Chart updates automatically whenever either selector changes via `useAprSeries` hook.
+ *
+ * Uses:
+ * ```ts
+ * <AprChart />
+ * ```
+ */
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useMemo } from "react"
 import {
   LineChart,
   Line,
@@ -15,50 +26,40 @@ import {
   ResponsiveContainer
 } from "recharts"
 import { PAIRS } from "@/app/constants"
-
-type AprPoint = {
-  timestamp: string
-  apr: number
-}
+import { useAprSeries } from "@/hooks/useAprSeries"
 
 export function AprChart() {
+  /** Currently selected trading pair */
   const [pair, setPair] = useState(PAIRS[0].value)
-  const [movingAvgHours, setMovingAvgHours] = useState(12)
-  const [data, setData] = useState<AprPoint[]>([])
-  const [loading, setLoading] = useState(true)
 
-  // function to fetch data
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const now = new Date()
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  /** Selected moving average window (in hours) */
+  const [movingAvgHours, setMovingAvgHours] = useState<1 | 12 | 24>(12)
 
-      const params = new URLSearchParams({
-        pair,
-        from: oneDayAgo.toISOString(),
-        to: now.toISOString(),
-        ma: movingAvgHours.toString()
-      })
-
-      const res = await fetch(`/api/pair-metrics?${params.toString()}`)
-      const json = await res.json()
-      setData(json.data || [])
-    } catch (err) {
-      console.error(err)
-      setData([])
-    } finally {
-      setLoading(false)
+  /** Compute 24-hour time range for fetching metrics */
+  const { fromISO, toISO } = useMemo(() => {
+    const now = new Date()
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    return {
+      fromISO: oneDayAgo.toISOString(),
+      toISO: now.toISOString()
     }
-  }, [pair, movingAvgHours])
+  }, []) // empty deps = compute once on mount
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  /** Fetch APR series for the selected pair and moving average */
+  const { data, loading } = useAprSeries({
+    pair,
+    fromISO,
+    toISO,
+    maHours: movingAvgHours
+  })
+
+  console.log(data.map((d) => ({ t: d.timestamp, apr: d.apr })))
 
   return (
     <div>
+      {/* Controls */}
       <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+        {/* Pair selector */}
         <select value={pair} onChange={(e) => setPair(e.target.value)}>
           {PAIRS.map((p) => (
             <option key={p.value} value={p.value}>
@@ -67,9 +68,12 @@ export function AprChart() {
           ))}
         </select>
 
+        {/* Moving Average selector */}
         <select
           value={movingAvgHours}
-          onChange={(e) => setMovingAvgHours(Number(e.target.value))}
+          onChange={(e) =>
+            setMovingAvgHours(Number(e.target.value) as 1 | 12 | 24)
+          }
         >
           {[1, 12, 24].map((h) => (
             <option key={h} value={h}>
@@ -79,6 +83,7 @@ export function AprChart() {
         </select>
       </div>
 
+      {/* Chart rendering */}
       {loading ? (
         <p>Loading...</p>
       ) : data.length === 0 ? (

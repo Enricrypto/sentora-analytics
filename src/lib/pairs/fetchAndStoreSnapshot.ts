@@ -1,33 +1,60 @@
 import { prisma } from "@/lib/prisma"
-import { fetchPairData } from "./fetchPairData"
+import { fetchPairData, PairData } from "./fetchPairData"
 
-/**
- * Fetches data for a single pair at a given timestamp and stores it in the database.
- * @param pair - The pair address to fetch
- * @param timestamp - The timestamp for the snapshot
- */
 export async function fetchAndStoreSnapshot(pair: string, timestamp: Date) {
   console.log(`Processing pair: ${pair} at ${timestamp.toISOString()}`)
 
-  try {
-    const data = await fetchPairData(pair)
-    console.log(`Fetched data for ${pair}:`, data)
+  // Fetch last 48 hours of hourly data
+  const hourlyData: PairData[] = await fetchPairData(pair)
+  console.log(`Fetched hourly data for ${pair}:`, hourlyData)
 
-    // Insert a new record into the PairSnapshot table
-    const snapshot = await prisma.pairSnapshot.create({
-      data: {
-        pair,
-        timestamp,
-        liquidity: parseFloat(data.reserveUSD),
-        volume: parseFloat(data.volumeUSD),
-        fees: parseFloat(data.feesUSD)
-      }
-    })
+  // Determine if DB is empty for this pair
+  const lastSnapshot = await prisma.pairSnapshot.findFirst({
+    where: { pair },
+    orderBy: { timestamp: "desc" }
+  })
 
-    console.log(
-      `Stored snapshot for ${pair} at ${snapshot.timestamp.toISOString()}`
-    )
-  } catch (err) {
-    console.error(`Failed to fetch/store snapshot for pair ${pair}:`, err)
+  // First run = no snapshot exists → backfill all 48 hours
+  if (!lastSnapshot) {
+    console.log(`No snapshots found for ${pair}, backfilling 48 hours`)
+    for (const hour of hourlyData.reverse()) {
+      await prisma.pairSnapshot.create({
+        data: {
+          pair,
+          timestamp: new Date(hour.timestamp),
+          liquidity: parseFloat(hour.reserveUSD),
+          volume: parseFloat(hour.volumeUSD),
+          fees: parseFloat(hour.feesUSD)
+        }
+      })
+    }
+    console.log(`Backfill complete for ${pair}`)
+    return
   }
+
+  // Subsequent runs → only insert latest if last snapshot > 60 min
+  const diffMinutes =
+    (timestamp.getTime() - lastSnapshot.timestamp.getTime()) / (1000 * 60)
+
+  if (diffMinutes < 60) {
+    console.log(
+      `Skipping ${pair}, last snapshot ${diffMinutes.toFixed(1)} minutes ago`
+    )
+    return
+  }
+
+  // Insert latest hourly snapshot
+  const latest = hourlyData[0]
+  await prisma.pairSnapshot.create({
+    data: {
+      pair,
+      timestamp,
+      liquidity: parseFloat(latest.reserveUSD),
+      volume: parseFloat(latest.volumeUSD),
+      fees: parseFloat(latest.feesUSD)
+    }
+  })
+  console.log(
+    `Stored latest snapshot for ${pair} at ${timestamp.toISOString()}`
+  )
 }

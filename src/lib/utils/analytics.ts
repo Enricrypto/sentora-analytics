@@ -1,42 +1,44 @@
 import { calculateAPR } from "./apr"
 
 /**
- * Efficiently computes a moving-average APR over a given time window.
- * Instead of recalculating the average from scratch for every snapshot (which would require 
- * slicing the array and summing over N items each time), we use a **sliding window** 
- * technique with running totals (`totalFees`, `totalLiquidity`) for O(n) performance.
-
- * Suitable for high-frequency DeFi metrics or large historical datasets.
+ * Computes a moving-average APR over a time window defined in hours.
+ * Works even if snapshots are irregularly spaced.
  *
- * @param snapshots - Array of pair snapshots, each with { timestamp, fees, liquidity }
- * @param windowSize - Size of the moving window (e.g., 1, 12, 24)
+ * @param snapshots - Array of pair snapshots { timestamp, fees, liquidity }
+ * @param windowHours - Size of the moving window in hours (e.g., 1, 12, 24)
  * @returns Array of { timestamp, apr } representing the smoothed APR series
  */
-export function calculateMovingAverageAPR(
+export function calculateMovingAverageAPRByHours(
   snapshots: { timestamp: Date; fees: number; liquidity: number }[],
-  windowSize: number
+  windowHours: number
 ) {
+  const result: { timestamp: Date; apr: number }[] = []
+  const window: { timestamp: Date; fees: number; liquidity: number }[] = []
+
   let totalFees = 0
   let totalLiquidity = 0
-  const result: { timestamp: Date; apr: number }[] = []
 
-  for (let i = 0; i < snapshots.length; i++) {
-    const snap = snapshots[i]
+  for (const snap of snapshots) {
+    // Add current snapshot to the window
+    window.push(snap)
     totalFees += snap.fees
     totalLiquidity += snap.liquidity
 
-    // Remove the oldest snapshot when window exceeds the target size
-    if (i >= windowSize) {
-      totalFees -= snapshots[i - windowSize].fees
-      totalLiquidity -= snapshots[i - windowSize].liquidity
+    // Remove snapshots outside the time window
+    // Removing old snapshots ensures APR calculation only reflects the current time window,
+    // which is exactly what you want for a moving average.
+    const windowStart = new Date(
+      snap.timestamp.getTime() - windowHours * 60 * 60 * 1000
+    )
+    while (window.length && window[0].timestamp < windowStart) {
+      totalFees -= window[0].fees
+      totalLiquidity -= window[0].liquidity
+      window.shift()
     }
 
-    const avgApr = calculateAPR(totalFees, totalLiquidity, windowSize)
-
-    result.push({
-      timestamp: snap.timestamp,
-      apr: avgApr
-    })
+    // Calculate APR based on the current window
+    const avgApr = calculateAPR(totalFees, totalLiquidity, windowHours)
+    result.push({ timestamp: snap.timestamp, apr: avgApr })
   }
 
   return result

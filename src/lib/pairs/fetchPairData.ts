@@ -1,11 +1,12 @@
-// fetchPairData(pairAddress) → fetches a single pair from The Graph.
-// Calculates fees as 0.3% of volumeUSD.
-// Returns a typed object with reserveUSD, volumeUSD, feesUSD, and token symbols.
+// fetchPairData(pairAddress, limit) → fetches last `limit` hours of data from The Graph
+// Calculates fees as 0.3% of volumeUSD
+// Returns an array of typed objects with reserveUSD, volumeUSD, feesUSD, timestamp, and token symbols
 
 import { request, gql } from "graphql-request"
 import { ENDPOINT } from "@/app/constants"
 
 export type PairData = {
+  timestamp: string
   reserveUSD: string
   volumeUSD: string
   feesUSD: string
@@ -13,10 +14,27 @@ export type PairData = {
   token1: { symbol: string }
 }
 
-export async function fetchPairData(pairAddress: string): Promise<PairData> {
+export type PairHourDataResponse = {
+  hourStartUnix: number
+  reserveUSD: string
+  volumeUSD: string
+  token0: { symbol: string }
+  token1: { symbol: string }
+}
+
+export async function fetchPairData(
+  pairAddress: string,
+  limit: number = 48
+): Promise<PairData[]> {
   const query = gql`
-    query PairData($pair: ID!) {
-      pair(id: $pair) {
+    query PairHourData($pair: String!, $first: Int!) {
+      pairHourDatas(
+        first: $first
+        orderBy: hourStartUnix
+        orderDirection: desc
+        where: { pair: $pair }
+      ) {
+        hourStartUnix
         reserveUSD
         volumeUSD
         token0 {
@@ -29,14 +47,21 @@ export async function fetchPairData(pairAddress: string): Promise<PairData> {
     }
   `
 
-  const data = await request(ENDPOINT, query, {
-    pair: pairAddress.toLowerCase()
-  })
+  const data: { pairHourDatas: PairHourDataResponse[] } = await request(
+    ENDPOINT,
+    query,
+    { pair: pairAddress.toLowerCase(), first: limit }
+  )
 
-  if (!data.pair) throw new Error(`Pair ${pairAddress} not found`)
+  if (!data.pairHourDatas || data.pairHourDatas.length === 0)
+    throw new Error(`No hourly data found for pair ${pairAddress}`)
 
-  return {
-    ...data.pair,
-    feesUSD: (parseFloat(data.pair.volumeUSD) * 0.003).toString() // 0.3% Uniswap fee
-  }
+  return data.pairHourDatas.map((d) => ({
+    timestamp: new Date(d.hourStartUnix * 1000).toISOString(),
+    reserveUSD: d.reserveUSD,
+    volumeUSD: d.volumeUSD,
+    feesUSD: (parseFloat(d.volumeUSD) * 0.003).toString(),
+    token0: d.token0,
+    token1: d.token1
+  }))
 }

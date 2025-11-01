@@ -1,4 +1,5 @@
-export const ENDPOINT = `https://gateway.thegraph.com/api/${process.env.THEGRAPH_API_KEY}/subgraphs/id/A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum`
+export const ENDPOINT =
+  "https://gateway.thegraph.com/api/subgraphs/id/A3Np3RQbaBA6oKJgiwDJeo5T3zrYfGHPWFYayMwtNDum"
 
 export const PAIRS = [
   { label: "Pair 1", value: "0xbc9d21652cca70f54351e3fb982c6b5dbe992a22" },

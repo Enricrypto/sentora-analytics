@@ -7,7 +7,9 @@
     "cron": "tsx src/scripts/cron.ts",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "server": "tsx src/server/index.ts",
+    "server:prod": "NODE_ENV=production tsx src/server/index.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.18.0",
