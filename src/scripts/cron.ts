@@ -19,6 +19,9 @@ async function main() {
     await prisma.$disconnect()
   }
 
+  console.log(
+    `✅ Ingestion completed successfully at ${new Date().toISOString()}`
+  )
   process.exit(0) // Exit so GitHub Actions workflow finishes
 }
 

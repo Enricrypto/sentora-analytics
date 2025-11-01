@@ -7,6 +7,7 @@ export const PAIRS = [
 ]
 
 // Config: past hours to fetch on first run
+// If no previous snapshot exists, logic backfills the past 48 hours of data
 export const INITIAL_FETCH_HOURS = 48
 
 // How often to fetch after first run

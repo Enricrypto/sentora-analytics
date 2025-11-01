@@ -1,4 +1,4 @@
-import { fetchAndStoreSnapshot } from "./fetchAndStoreSnapshot"
+import { fetchAndStoreSnapshots } from "./fetchAndStoreSnapshots"
 
 // List of pairs to track
 const PAIRS = [
@@ -12,12 +12,7 @@ const PAIRS = [
  * - Subsequent runs: inserts latest snapshot only if last snapshot is older than 60 minutes.
  */
 export async function ingestPairs() {
-  const now = new Date()
-
   for (const pair of PAIRS) {
-    console.log(`\n=== Ingesting pair: ${pair} ===`)
-    await fetchAndStoreSnapshot(pair, now)
+    await fetchAndStoreSnapshots(pair)
   }
-
-  console.log("\nAll pairs processed.")
 }
